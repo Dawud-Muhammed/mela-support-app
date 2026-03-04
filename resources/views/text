@@ -1,0 +1,124 @@
+mela-app/
+├── public/
+│   ├── css/
+│   │   ├── style-65.css         (Loaded in App-Classic)
+│   │   └── style-78.css         (Loaded in App-Modern)
+│   ├── js/
+│   │   ├── app-ui.js            (Shared Sidebar/Nav Logic)
+│   │   └── analytics-engine.js  (Only loaded on Analytics/Dashboard)
+│   └── images/
+│       └── logo.png
+├── resources/
+│   └── views/
+│       ├── components/          
+│       │   ├── sidebar.blade.php  <-- [THE MASTER SIDEBAR]
+│       │   └── ui/
+│       │       └── status-badge.blade.php
+│       ├── layouts/             
+│       │   ├── app-modern.blade.php  (Shell for Dashboard/Settings/Admin)
+│       │   └── app-classic.blade.php (Shell for Tickets/Agent Actions)
+│       ├── tickets/             
+│       │   ├── create.blade.php      (Route: /tickets/create)
+│       │   ├── details.blade.php     (Route: /tickets/{id})
+│       │   └── success.blade.php     (Route: /tickets/success)
+│       ├── agent/               
+│       │   ├── inbox.blade.php       (Route: /agent/inbox)
+│       │   └── action.blade.php      (Route: /agent/action)
+│       ├── admin/               
+│       │   └── analytics.blade.php   (Route: /admin/analytics)
+│       ├── auth/                <-- [NEW: Professional standard]
+│       │   ├── login.blade.php       (From: login.html)
+│       │   └── register.blade.php    (From: register.html)
+│       ├── dashboard.blade.php  (Route: /dashboard)
+│       ├── notifications.blade.php (Route: /notifications)
+│       ├── settings.blade.php   (Route: /settings)
+│       └── index.blade.php      (Route: /)
+
+
+
+
+
+erDiagram
+    USERS {
+        bigint id PK
+        string name
+        string email UK
+        string password
+        string phone
+        string kebele
+        string sub_city
+        enum role "citizen, agent, admin"
+        string avatar_path
+        timestamp created_at
+    }
+
+    CATEGORIES {
+        bigint id PK
+        string name
+        string slug UK
+        string icon
+        int sla_hours
+        timestamp created_at
+    }
+
+    TICKETS {
+        bigint id PK
+        bigint user_id FK "Cascade"
+        bigint category_id FK "Restrict"
+        bigint assigned_agent_id FK "NullOnDelete"
+        string subject
+        text description
+        string location
+        string evidence_path
+        enum priority "low, medium, high, urgent"
+        enum status "open, assigned, in_progress, resolved, closed"
+        timestamp eta_timestamp
+        timestamp created_at
+    }
+
+    SHIFTS {
+        bigint id PK
+        bigint agent_id FK "Cascade"
+        string workspace_name
+        timestamp start_time
+        timestamp end_time
+        timestamp created_at
+    }
+
+    TICKET_UPDATES {
+        bigint id PK
+        bigint ticket_id FK "Cascade"
+        string status_from
+        string status_to
+        text comment
+        timestamp created_at
+    }
+
+    NOTIFICATIONS {
+        bigint id PK
+        bigint user_id FK "Cascade"
+        string title
+        text message
+        boolean is_read
+        enum type "system, ticket_update, alert"
+        timestamp created_at
+    }
+
+    ANALYTICS_SNAPSHOTS {
+        bigint id PK
+        date snapshot_date UK
+        int total_tickets_created
+        int total_tickets_resolved
+        int active_agents_count
+        decimal avg_resolution_hours
+        int sla_breaches
+        timestamp created_at
+    }
+
+    %% Relationships
+    USERS ||--o{ TICKETS : "reports (user_id)"
+    USERS ||--o{ TICKETS : "assigned to (assigned_agent_id)"
+    CATEGORIES ||--o{ TICKETS : "categorizes (category_id)"
+    USERS ||--o{ SHIFTS : "works (agent_id)"
+    TICKETS ||--o{ TICKET_UPDATES : "tracks timeline (ticket_id)"
+    USERS ||--o{ NOTIFICATIONS : "receives (user_id)"
