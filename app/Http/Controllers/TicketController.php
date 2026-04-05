@@ -7,7 +7,8 @@ use App\Models\Category;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
-
+use App\Notifications\TicketAssignedNotification;
+use App\Notifications\TicketResolvedNotification;
 class TicketController extends Controller
 {
     public function create()
@@ -32,7 +33,7 @@ class TicketController extends Controller
         return view('tickets.details', compact('ticket'));
     }
 
-        public function storeMessage(Request $request, Ticket $ticket)
+       public function storeMessage(Request $request, Ticket $ticket)
     {
         // 🔒 Security: Only people involved in the ticket can chat!
         Gate::authorize('view', $ticket);
@@ -41,17 +42,46 @@ class TicketController extends Controller
             'message' => 'required|string|max:1000',
         ]);
 
-        // Save it to the DB!
+        $isInternal = $request->has('is_internal');
+
+        // 1. Save it to the DB!
         $ticket->messages()->create([
             'user_id' => auth()->id(),
             'message' => $validated['message'],
-            'is_internal' => $request->has('is_internal'),
+            'is_internal' => $isInternal,
         ]);
+
+        // 2. THE NOTIFICATION ENGINE 🚀
+        // Only send alerts if this is a PUBLIC message
+        if (!$isInternal) {
+            
+            // A. If the sender is NOT the ticket creator, notify the creator!
+            if (auth()->id() !== $ticket->user_id && $ticket->user) {
+                $ticket->user->notify(new \App\Notifications\NewTicketMessageNotification($ticket));
+            }
+
+            // B. If the sender is NOT the assigned technician, notify the technician!
+            if ($ticket->assigned_technician_id && auth()->id() !== $ticket->assigned_technician_id) {
+                $technician = \App\Models\User::find($ticket->assigned_technician_id);
+                if ($technician) {
+                    $technician->notify(new \App\Notifications\NewTicketMessageNotification($ticket));
+                }
+            }
+        }
 
         return redirect()->back(); // Instantly refresh to show the new message
     }
-    
-    public function store(Request $request)
+
+    // We changed $id to Ticket $ticket to use Laravel Route Model Binding
+    public function success(Ticket $ticket)
+    {
+        // 🔒 ANTI-HACKER SHIELD: This throws 403 if the citizen didn't create this ticket!
+        Gate::authorize('view', $ticket);
+
+        return view('tickets.success', compact('ticket'));
+    }
+
+        public function store(Request $request)
     {
         // 1. STRICT VALIDATION FOR UNIVERSITY
         $validated = $request->validate([
@@ -72,11 +102,10 @@ class TicketController extends Controller
         $category = Category::findOrFail($validated['category_id']);
 
         // 2. THE UNIVERSITY ROBOT DISPATCHER 🤖
-        // Find a Technician who specializes in this category AND is assigned to this building
         $assignedTechnician = User::where('role', 'technician')
-                             ->where('specialty', $category->name)
-                             ->where('assigned_buildings', 'LIKE', '%' . $validated['building'] . '%')
-                             ->first();
+                     ->where('specialty', 'LIKE', '%' . $category->name . '%')
+                     ->where('assigned_buildings', 'LIKE', '%' . $validated['building'] . '%')
+                     ->first();                     
 
         $initialStatus = $assignedTechnician ? 'assigned' : 'open';
         $assignedTechnicianId = $assignedTechnician ? $assignedTechnician->id : null;
@@ -87,52 +116,40 @@ class TicketController extends Controller
             'category_id'              => $category->id,
             'subject'                  => $validated['subject'],
             'description'              => $validated['description'],
-            
-            // The New Location Data!
             'building'                 => $validated['building'],
             'floor'                    => $validated['floor'],
             'specific_location'        => $validated['specific_location'],
-            
             'evidence_path'            => $evidencePath,
             'status'                   => $initialStatus, 
-            'assigned_technician_id'   => $assignedTechnicianId, // Updated column name!
+            'assigned_technician_id'   => $assignedTechnicianId, 
             'priority'                 => 'medium', 
             'eta_timestamp'            => now()->addHours($category->sla_hours), 
         ]);
 
-                // ... (your existing Ticket::create code) ...
+        // 4. NOTIFICATIONS
+        if ($assignedTechnician) {
+            // A. FIRE THE IN-APP BELL NOTIFICATION! 🔔
+            $assignedTechnician->notify(new \App\Notifications\TicketAssignedNotification($ticket));
 
-        // 📱 SEND TELEGRAM NOTIFICATION TO TECHNICIAN
-        if ($assignedTechnician && $assignedTechnician->telegram_chat_id) {
-            
-            // Format a beautiful, bold notification message
-            $message = "🚨 <b>NEW TICKET ASSIGNED</b> 🚨\n\n";
-            $message .= "<b>Category:</b> " . $category->name . "\n";
-            $message .= "<b>Building:</b> " . $validated['building'] . "\n";
-            $message .= "<b>Floor/Room:</b> " . $validated['floor'] . " (" . $validated['specific_location'] . ")\n\n";
-            $message .= "<b>Issue:</b> " . $validated['subject'] . "\n\n";
-            $message .= "<i>Please log in to your Mela Support dashboard to update the status.</i>";
+            // B. SEND TELEGRAM NOTIFICATION TO TECHNICIAN 📱
+            if ($assignedTechnician->telegram_chat_id) {
+                $message = "🚨 <b>NEW TICKET ASSIGNED</b> 🚨\n\n";
+                $message .= "<b>Category:</b> " . $category->name . "\n";
+                $message .= "<b>Building:</b> " . $validated['building'] . "\n";
+                $message .= "<b>Floor/Room:</b> " . $validated['floor'] . " (" . $validated['specific_location'] . ")\n\n";
+                $message .= "<b>Issue:</b> " . $validated['subject'] . "\n\n";
+                $message .= "<i>Please log in to your Mela Support dashboard to update the status.</i>";
 
-            // Call our new Service and send the message!
-            $telegramService = app(\App\Services\TelegramService::class);
-            $telegramService->sendMessage($assignedTechnician->telegram_chat_id, $message);
+                $telegramService = app(\App\Services\TelegramService::class);
+                $telegramService->sendMessage($assignedTechnician->telegram_chat_id, $message);
+            }
         }
 
         return redirect()->route('tickets.success', ['ticket' => $ticket->id])
                          ->with('success', 'Ticket created and routed successfully!');
     }
 
-    // We changed $id to Ticket $ticket to use Laravel Route Model Binding
-    public function success(Ticket $ticket)
-    {
-        // 🔒 ANTI-HACKER SHIELD: This throws 403 if the citizen didn't create this ticket!
-        Gate::authorize('view', $ticket);
 
-        return view('tickets.success', compact('ticket'));
-    }
-
-        // 1. UPDATE THIS EXISTING METHOD
-    // Find this exact method in your TicketController
     public function updateStatus(Request $request, Ticket $ticket)
     {
         $validated = $request->validate([
@@ -148,58 +165,108 @@ class TicketController extends Controller
         $ticket->status = $validated['status'];
         $ticket->save();
 
-        // 🚨 ADD THIS NEW BLOCK RIGHT HERE! 🚨
+          // 🚨 TRIGGER NOTIFICATIONS WHEN RESOLVED OR CLOSED 🚨
         if ($ticket->status === 'resolved') {
-            // Import the Mail facade and our new Mail class at the top of your controller, or use full paths like this:
+            // Send Email
             \Illuminate\Support\Facades\Mail::to($ticket->user->email)
                 ->send(new \App\Mail\TicketResolvedMail($ticket));
+
+            // Notify User it's resolved
+            $ticket->user->notify(new \App\Notifications\TicketResolvedNotification($ticket));
+        } 
+        elseif ($ticket->status === 'closed') {
+            // THE NEW FUEL: Notify the User and Technician that the ticket is officially closed
+            // You can use a generic notification or create a TicketClosedNotification!
+            $message = "Ticket #{$ticket->id} has been officially closed.";
+            
+            // For now, let's just reuse the Resolved notification class but pass a different message,
+            // OR you can generate a quick `TicketClosedNotification` class!
+            $ticket->user->notify(new \App\Notifications\TicketResolvedNotification($ticket));
+            
+            if ($ticket->assigned_technician_id) {
+                $technician = \App\Models\User::find($ticket->assigned_technician_id);
+                $technician->notify(new \App\Notifications\TicketResolvedNotification($ticket));
+            }
         }
 
         return back()->with('success', 'Case status updated successfully!');
     }
+        
 
-    // 2. ADD THIS BRAND NEW METHOD FOR THE CITIZEN
-    public function verifyResolution(Request $request, Ticket $ticket)
-    {
-        // Only the owner of the ticket can verify it
-        Gate::authorize('view', $ticket);
+    // // 2. ADD THIS BRAND NEW METHOD FOR THE CITIZEN
+     public function verifyResolution(Request $request, Ticket $ticket)
+     {
+         // Only the owner of the ticket can verify it
+         Gate::authorize('view', $ticket);
 
-        $validated = $request->validate(['action' => 'required|in:confirm,reject']);
+         $validated = $request->validate(['action' => 'required|in:confirm,reject']);
 
-        if ($validated['action'] === 'confirm') {
-            $ticket->update(['status' => 'closed']);
+         if ($validated['action'] === 'confirm') {
+             $ticket->update(['status' => 'closed']);
 
-            // 🎉 SEND CONGRATULATION TELEGRAM TO TECHNICIAN
-            if ($ticket->assignedTechnician && $ticket->assignedTechnician->telegram_chat_id) {
-                $message = "🎉 <b>GREAT JOB! TICKET CLOSED</b> 🎉\n\n";
-                $message .= "The user just verified your work and officially closed the ticket!\n\n";
-                $message .= "<b>Ticket ID:</b> #" . $ticket->id . "\n";
-                $message .= "<b>Location:</b> " . $ticket->building . " (" . $ticket->specific_location . ")\n\n";
-                $message .= "<i>Thank you for your hard work and keeping the BiT campus running! 🌟</i>";
+             // 🎉 SEND CONGRATULATION TELEGRAM TO TECHNICIAN
+             if ($ticket->assignedTechnician && $ticket->assignedTechnician->telegram_chat_id) {
+                 $message = "🎉 <b>GREAT JOB! TICKET CLOSED</b> 🎉\n\n";
+                 $message .= "The user just verified your work and officially closed the ticket!\n\n";
+                 $message .= "<b>Ticket ID:</b> #" . $ticket->id . "\n";
+                 $message .= "<b>Location:</b> " . $ticket->building . " (" . $ticket->specific_location . ")\n\n";
+                 $message .= "<i>Thank you for your hard work and keeping the BiT campus running! 🌟</i>";
 
-                $telegramService = app(\App\Services\TelegramService::class);
-                $telegramService->sendMessage($ticket->assignedTechnician->telegram_chat_id, $message);
-            }
+                 $telegramService = app(\App\Services\TelegramService::class);
+                 $telegramService->sendMessage($ticket->assignedTechnician->telegram_chat_id, $message);
+             }
 
-            return redirect()->back()->with('success', 'Thank you! The case is now officially closed.');
+                     // THE ENGINE: If the ticket is closed, notify the necessary people!
+        if ($ticket->status === 'closed') {
             
-        } else {
-            // 🚨 THE CITIZEN REJECTED IT! Make it urgent!
-            $ticket->update(['status' => 'in_progress', 'priority' => 'urgent']);
-
-            // ⚠️ SEND WARNING TELEGRAM TO TECHNICIAN
-            if ($ticket->assignedTechnician && $ticket->assignedTechnician->telegram_chat_id) {
-                $message = "⚠️ <b>URGENT: WORK REJECTED</b> ⚠️\n\n";
-                $message .= "The user reported that the issue is STILL BROKEN.\n";
-                $message .= "The ticket has been reopened and escalated to <b>URGENT</b> priority.\n\n";
-                $message .= "<b>Location:</b> " . $ticket->building . " (" . $ticket->specific_location . ")\n";
-                $message .= "<i>Please return to the location immediately.</i>";
-
-                $telegramService = app(\App\Services\TelegramService::class);
-                $telegramService->sendMessage($ticket->assignedTechnician->telegram_chat_id, $message);
+            // 1. If the person closing it is the USER, notify the TECHNICIAN!
+            if (auth()->id() === $ticket->user_id && $ticket->assigned_technician_id) {
+                $technician = \App\Models\User::find($ticket->assigned_technician_id);
+                if ($technician) {
+                    $technician->notify(new \App\Notifications\TicketClosedNotification($ticket));
+                }
             }
 
-            return redirect()->back()->with('error', 'Case reopened and escalated to URGENT priority.');
+            // 2. If the person closing it is an ADMIN, notify BOTH the User and the Technician!
+            if (auth()->user()->role === 'admin') {
+                $ticket->user->notify(new \App\Notifications\TicketClosedNotification($ticket));
+                
+                if ($ticket->assigned_technician_id) {
+                    $technician = \App\Models\User::find($ticket->assigned_technician_id);
+                    if ($technician) {
+                        $technician->notify(new \App\Notifications\TicketClosedNotification($ticket));
+                    }
+                }
+            }
         }
-    }
+
+             return redirect()->back()->with('success', 'Thank you! The case is now officially closed.');
+            
+         } else {
+             // 🚨 THE CITIZEN REJECTED IT! Make it urgent!
+             $ticket->update(['status' => 'in_progress', 'priority' => 'urgent']);
+
+             // ⚠️ SEND WARNING TELEGRAM TO TECHNICIAN
+             if ($ticket->assignedTechnician && $ticket->assignedTechnician->telegram_chat_id) {
+                 $message = "⚠️ <b>URGENT: WORK REJECTED</b> ⚠️\n\n";
+                 $message .= "The user reported that the issue is STILL BROKEN.\n";
+                 $message .= "The ticket has been reopened and escalated to <b>URGENT</b> priority.\n\n";
+                 $message .= "<b>Location:</b> " . $ticket->building . " (" . $ticket->specific_location . ")\n";
+                 $message .= "<i>Please return to the location immediately.</i>";
+
+                 $telegramService = app(\App\Services\TelegramService::class);
+                 $telegramService->sendMessage($ticket->assignedTechnician->telegram_chat_id, $message);
+             }
+
+                     // THE ENGINE: Notify the Technician that the user rejected the fix!
+        if ($ticket->assigned_technician_id) {
+            $technician = \App\Models\User::find($ticket->assigned_technician_id);
+            if ($technician) {
+                $technician->notify(new \App\Notifications\TicketRejectedNotification($ticket));
+            }
+        }
+
+             return redirect()->back()->with('error', 'Case reopened and escalated to URGENT priority.');
+         }
+     }
 }

@@ -1,103 +1,3 @@
-{{-- <x-app-layout title="Create Ticket" >
-    <div class="flex-1">
-        <!-- Header omitted for brevity (keep yours) -->
-        <header class="sticky top-0 z-20 border-b border-slate-200/70 bg-white/70 backdrop-blur-xl">
-          <div class="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
-            <div>
-              <div class="mb-2 flex items-center gap-3 lg:hidden">
-                <img src="logo.png" alt="Mela Support Logo" class="h-10 w-auto" />
-                <span class="text-sm font-semibold">Mela Support</span>
-              </div>
-              <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Case Intake</p>
-              <h1 class="text-2xl font-semibold">Create Ticket</h1>
-            </div>
-            <div class="flex items-center gap-3">
-              <button class="rounded-2xl bg-[var(--color-primary)] px-5 py-2 text-sm font-semibold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">Save Draft</button>
-              <button class="mobile-menu-btn lg:hidden rounded-2xl border border-slate-200/70 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
-                <i data-lucide="menu" class="h-4 w-4"></i>
-              </button>
-            </div>
-          </div>
-        </header>
-        
-        <main class="px-6 py-10">
-          <div class="mx-auto w-full max-w-5xl">
-            <section class="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-              
-              <form class="rounded-[2rem] border border-slate-200/70 bg-white/70 p-8 shadow-sm" action="{{ route('tickets.store') }}" method="POST" enctype="multipart/form-data">
-                @csrf
-                
-                <div class="flex items-center justify-between">
-                  <div>
-                    <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Step 1</p>
-                    <h2 class="text-xl font-semibold">Case details</h2>
-                  </div>
-                </div>
-
-                <div class="mt-6 space-y-4">
-                  <div>
-                    <label class="text-sm font-medium">Category</label>
-                    <select class="mt-2 w-full rounded-2xl border border-slate-200/70 bg-white px-4 py-3 text-sm" name="category_id" required>
-                      <option value="">Select an issue type...</option>
-                      <!-- 🔄 DYNAMIC CATEGORIES -->
-                      @foreach($categories as $category)
-                          <option value="{{ $category->id }}">{{ $category->name }}</option>
-                      @endforeach
-                    </select>
-                    @error('category_id') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                  </div>
-
-                  <div>
-                    <label class="text-sm font-medium">Subject</label>
-                    <input class="mt-2 w-full rounded-2xl border border-slate-200/70 bg-white px-4 py-3 text-sm" value="{{ old('subject') }}" name="subject" required/>
-                    @error('subject') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                  </div>
-
-                  <div>
-                    <label class="text-sm font-medium">Detailed Description</label>
-                    <textarea class="mt-2 w-full rounded-2xl border border-slate-200/70 bg-white px-4 py-3 text-sm" rows="5" name="description" required>{{ old('description') }}</textarea>
-                    @error('description') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                  </div>
-                </div>
-
-                <div class="mt-8 border-t border-slate-200/70 pt-6">
-                  <div class="flex items-center justify-between">
-                    <div>
-                      <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Step 2</p>
-                      <h3 class="text-lg font-semibold">Evidence upload</h3>
-                    </div>
-                  </div>
-                  <!-- 📁 ADDED REAL FILE INPUT -->
-                  <div class="mt-4">
-                      <input type="file" name="evidence" accept=".jpg,.jpeg,.png,.pdf" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[var(--color-primary)] file:text-white hover:file:bg-indigo-700"/>
-                      @error('evidence') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                  </div>
-                </div>
-
-                <div class="mt-8 border-t border-slate-200/70 pt-6">
-                  <div class="mt-4 flex flex-wrap gap-4">
-                    <button type="submit" class="rounded-2xl bg-[var(--color-action)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">Submit Ticket</button>
-                  </div>
-                </div>
-              </form>
-
-              <aside class="space-y-6">
-                <div class="rounded-[2rem] border border-slate-200/70 bg-white/70 p-6 shadow-sm">
-                  <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Citizen Details</p>
-                  <div class="mt-4 space-y-3 text-sm">
-                    <!-- 👤 DYNAMIC USER DATA -->
-                    <p><span class="font-medium">Reporter:</span> {{ auth()->user()->name }}</p>
-                    <p><span class="font-medium">Email:</span> {{ auth()->user()->email }}</p>
-                    <p><span class="font-medium">Phone:</span> {{ auth()->user()->phone ?? 'N/A' }}</p>
-                    <p><span class="font-medium">Kebele:</span> {{ auth()->user()->kebele ?? 'N/A' }}</p>
-                  </div>
-                </div>
-              </aside>
-            </section>
-          </div>
-        </main>
-    </div>
-</x-app-layout> --}}
 <x-app-layout title="Create Ticket" >
     <div class="flex-1">
         <!-- Header -->
@@ -105,18 +5,18 @@
           <div class="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
             <div>
               <div class="mb-2 flex items-center gap-3 lg:hidden">
-                <img src="logo.png" alt="Mela Support Logo" class="h-10 w-auto" />
+                <img src="{{ asset('mela-logo.svg') }}"alt="BiT Logo" class="h-10 w-auto">
                 <span class="text-sm font-semibold">Mela Support</span>
               </div>
               <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Case Intake</p>
               <h1 class="text-2xl font-semibold">Create Ticket</h1>
             </div>
-            <div class="flex items-center gap-3">
+            {{-- <div class="flex items-center gap-3">
               <button class="rounded-2xl bg-[var(--color-primary)] px-5 py-2 text-sm font-semibold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">Save Draft</button>
               <button class="mobile-menu-btn lg:hidden rounded-2xl border border-slate-200/70 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
                 <i data-lucide="menu" class="h-4 w-4"></i>
               </button>
-            </div>
+            </div> --}}
           </div>
         </header>
         
@@ -263,7 +163,7 @@
                     </div>
                   </div>
                   <div class="mt-4">
-                      <input type="file" name="evidence" accept=".jpg,.jpeg,.png,.pdf" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[var(--color-primary)] file:text-white hover:file:bg-indigo-700"/>
+                      <input type="file" name="evidence" accept=".jpg,.jpeg,.png,.pdf" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[var(--color-primary)] file:text-white hover:file:bg-indigo-700" required/>
                       @error('evidence') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
                   </div>
                 </div>

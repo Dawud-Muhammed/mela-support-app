@@ -5,7 +5,7 @@
           <div class="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
             <div>
               <div class="mb-2 flex items-center gap-3 lg:hidden">
-                <img src="{{ asset('logo.png') }}" alt="BiT Logo" class="h-10 w-auto" />
+                <img src="{{ asset('mela-logo.svg') }}"alt="BiT Logo" class="h-10 w-auto">
                 <span class="text-sm font-semibold">Mela Support: BiT Edition</span>
               </div>
               <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Overview</p>

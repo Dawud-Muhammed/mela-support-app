@@ -37,6 +37,6 @@ class AgentController extends Controller
             'assigned_buildings' => $buildingsJson, 
         ]);
 
-        return redirect()->back()->with('success', 'Alhamdulillah! Technician ' . $validated['name'] . ' was added to the campus workforce.');
+        return redirect()->back()->with('success', ' Technician ' . $validated['name'] . ' was added to the campus workforce.');
     }
 }

@@ -4,7 +4,7 @@
           <div class="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
             <div>
               <div class="mb-2 flex items-center gap-3 lg:hidden">
-                <img src="logo.png" alt="BiT Logo" class="h-10 w-auto" />
+                <img src="{{ asset('mela-logo.svg') }}"alt="BiT Logo" class="h-10 w-auto">
                 <span class="text-sm font-semibold">Mela Support: BiT Edition</span>
               </div>
               <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Campus Maintenance</p>
@@ -13,6 +13,9 @@
             <div class="flex items-center gap-3">
               <a class="rounded-2xl border border-slate-200 bg-white px-5 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md" href="{{ route('tickets.show', $ticket->id) }}">View Ticket</a>
             </div>
+              <button class="mobile-menu-btn lg:hidden rounded-2xl border border-slate-200/70 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
+                <i data-lucide="menu" class="h-4 w-4"></i>
+              </button>
           </div>
         </header>
 

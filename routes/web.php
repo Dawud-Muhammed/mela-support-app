@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\AgentController; // We added this for the Admin t
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Middleware\CheckIfBanned;
+use Illuminate\Http\Request;
 
 // ==========================================
 // PUBLIC ROUTES (No login required)
@@ -69,4 +70,7 @@ Route::middleware(['auth', 'verified', CheckIfBanned::class])->group(function ()
 // Breeze Auth Routes (Login, Register, Password Reset)
 require __DIR__.'/auth.php';
 
-
+// NOTIFICATION ROUTES
+Route::get('/notifications', [App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
+Route::get('/notifications/{id}/redirect', [App\Http\Controllers\NotificationController::class, 'readAndRedirect'])->name('notifications.redirect');
+Route::post('/notifications/mark-read', [App\Http\Controllers\NotificationController::class, 'markAllRead'])->name('notifications.markAllRead');

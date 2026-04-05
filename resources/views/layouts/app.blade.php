@@ -9,23 +9,31 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link rel="stylesheet" href="{{ asset('style-78.css') }}">
     <link rel="stylesheet" href="{{ asset($css) }}">
   </head>
   <body class="bg-[#f8fafc] text-slate-900">
     <div class="min-h-screen flex">
-      <aside class="sidebar hidden lg:flex w-72 flex-col bg-indigo-900 text-white" data-sidebar>
+      <aside class="sidebar hidden lg:flex w-72 flex-col bg-indigo-900 text-white relative z-[100]" data-sidebar>
         <div class="p-6 pb-4">
+
           <div class="flex flex-col items-start gap-4">
-            <div class="flex w-full items-center gap-3 sidebar-logo-row">
-              <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10">
-                <img src="{{ asset('mela-logo.svg') }}"alt="BiT Logo" class="h-10 w-auto">
+            <div class="flex w-full items-center justify-between gap-3 sidebar-logo-row">
+              <div class="flex items-center gap-3">
+                  <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10">
+                    <img src="{{ asset('mela-logo.svg') }}" alt="BiT Logo" class="h-10 w-auto">
+                  </div>
+                  <div class="sidebar-brand">
+                    <p class="text-xs uppercase tracking-[0.2em] text-indigo-200">Mela Support</p>
+                    <p class="text-base font-semibold">BiT Campus</p>
+                  </div>
               </div>
-              <div class="sidebar-brand">
-                <p class="text-xs uppercase tracking-[0.2em] text-indigo-200">BiT Campus</p>
-                <p class="text-base font-semibold">Mela Support</p>
-              </div>
+              
+              <!-- NOTIFICATION COMPONENT -->
+              <x-notification-center />
             </div>
+
             <button type="button" aria-label="Toggle sidebar" data-sidebar-toggle class="sidebar-toggle inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-white/10 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-800">
               <i data-lucide="chevron-right" class="sidebar-toggle-icon h-5 w-5"></i>
               <i data-lucide="chevron-right" class="sidebar-toggle-icon h-5 w-5"></i>
@@ -49,8 +57,7 @@
               <span class="sidebar-label">Landing</span>
             </a>
 
-            @if (auth()->user()?->role == 'admin' OR auth()->user()?->role == 'technician' OR auth()->user()?->role == 'user')
-            <!-- Using ?-> prevents the crash if user is logged out -->
+            @if (auth()->user()?->role == 'admin' || auth()->user()?->role == 'technician' || auth()->user()?->role == 'user')
             <a class="sidebar-link flex items-center gap-3 rounded-2xl px-4 py-3 text-indigo-100 transition hover:bg-white/10 {{ request()->routeIs('dashboard')  ? 'bg-indigo-500 text-white shadow-md' : 'text-indigo-100 hover:bg-white/10' }}" href="{{ route('dashboard') }}">
               <i data-lucide="bar-chart-3" class="h-4 w-4"></i>
               <span class="sidebar-label">Dashboard</span>
@@ -66,7 +73,7 @@
               <i data-lucide="shield" class="h-4 w-4"></i>
               <span class="sidebar-label">Admin Analytics</span>
             </a>
-              <a  href="{{ route('admin.users') }}"class="sidebar-link flex items-center gap-3 rounded-2xl px-4 py-3 text-indigo-100 transition hover:bg-white/10 {{ request()->routeIs('admin.users')  ? 'bg-indigo-500 text-white shadow-md' : 'text-indigo-100 hover:bg-white/10' }}">
+            <a href="{{ route('admin.users') }}" class="sidebar-link flex items-center gap-3 rounded-2xl px-4 py-3 text-indigo-100 transition hover:bg-white/10 {{ request()->routeIs('admin.users')  ? 'bg-indigo-500 text-white shadow-md' : 'text-indigo-100 hover:bg-white/10' }}">
               <i data-lucide="users" class="h-4 w-4"></i>
               <span class="sidebar-label">Manage Users</span>
             </a>
@@ -97,8 +104,7 @@
           </form>
           @endauth
 
-          <!-- ONLY STUDENTS/STAFF CAN CREATE TICKETS -->
-          @if(auth()->user()?->role === 'user')
+          @if(auth()->user()?->role === 'user' || auth()->user()?->role === 'technician' || auth()->user()?->role === 'admin')
           <div class="mt-4 space-y-2">
             <button class="sidebar-folder flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-indigo-100 transition hover:bg-white/10" data-bs-toggle="collapse" data-bs-target="#ticket-management">
               <span class="flex items-center gap-3">
@@ -108,45 +114,42 @@
               <i data-lucide="chevron-down" data-folder-chevron class="sidebar-chevron h-4 w-4 rotate-180"></i>
             </button>
             <div id="ticket-management" class="sidebar-items folder-content ml-9 space-y-1 overflow-hidden max-h-96 opacity-100">
-              
               <a class="sidebar-link flex items-center gap-3 rounded-2xl px-3 py-2 text-indigo-100/90 transition hover:bg-white/10 {{ request()->routeIs('tickets.create') ? 'bg-indigo-500 text-white shadow-md' : '' }}" href="{{ route('tickets.create') }}">
                 <i data-lucide="file-plus" class="h-4 w-4"></i>
                 <span class="sidebar-label">Create Ticket</span>
               </a>
-
             </div>
           </div>
           @endif
 
         </nav>
 
-        <!-- TECHNICIAN INFO BADGE -->
         @if(auth()->user()?->role === 'technician')
         <div class="mt-auto border-t border-white/10 px-4 py-4">
             <div class="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-sm">
                 <p class="sidebar-section-label text-[10px] uppercase tracking-[0.25em] text-indigo-200">Campus Tech</p>
                 <p class="sidebar-label mt-2 text-sm font-medium">{{ auth()->user()->name }}</p>
-                <p class="sidebar-label text-xs text-indigo-200/80">{{ auth()->user()->specialty }}</p>
+                <p class="sidebar-label text-xs text-indigo-200/80">{{ auth()->user()->specialty ?? 'Technician' }}</p>
             </div>
         </div>
         @endif
-          <!-- User INFO BADGE -->
+        
         @if(auth()->user()?->role === 'user')
         <div class="mt-auto border-t border-white/10 px-4 py-4">
             <div class="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-sm">
                 <p class="sidebar-section-label text-[10px] uppercase tracking-[0.25em] text-indigo-200">Campus User</p>
                 <p class="sidebar-label mt-2 text-sm font-medium">{{ auth()->user()->name }}</p>
-                <p class="sidebar-label text-xs text-indigo-200/80">{{ auth()->user()->campus_role }}</p>
+                <p class="sidebar-label text-xs text-indigo-200/80">{{ auth()->user()->campus_role ?? 'Student/Staff' }}</p>
             </div>
         </div>
         @endif
-        <!-- Admin INFO BADGE -->
+        
         @if(auth()->user()?->role === 'admin')
         <div class="mt-auto border-t border-white/10 px-4 py-4">
             <div class="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-sm">
                 <p class="sidebar-section-label text-[10px] uppercase tracking-[0.25em] text-indigo-200">Facility Manager</p>
                 <p class="sidebar-label mt-2 text-sm font-medium">{{ auth()->user()->name }}</p>
-                <p class="sidebar-label text-xs text-indigo-200/80">{{ auth()->user()->campus_role }}</p>
+                <p class="sidebar-label text-xs text-indigo-200/80">{{ auth()->user()->campus_role ?? 'Admin' }}</p>
             </div>
         </div>
         @endif
