@@ -19,7 +19,65 @@
             </div> --}}
           </div>
         </header>
+        @if ($errors->any())
+<div class="px-6 pt-6">
+  <div class="mx-auto w-full max-w-2xl md:ml-auto md:mr-0 md:max-w-md">
+    <!-- Notice the colors are changed to red -->
+    <div id="error-toast" class="flex items-start gap-3 rounded-[1.5rem] border border-red-300/50 bg-red-50/40 p-4 text-red-950 shadow-lg backdrop-blur-md transition-all duration-500 ease-out opacity-0 -translate-y-3" role="alert" aria-live="assertive">
+      
+      <div class="mt-0.5 rounded-full bg-red-500/10 p-2">
+        <!-- Changed icon to an alert circle -->
+        <i data-lucide="alert-circle" class="h-5 w-5 text-red-600"></i>
+      </div>
+      
+      <div class="flex-1">
+        <p class="text-sm font-semibold uppercase tracking-[0.18em] text-red-700">Validation Error</p>
         
+        <!-- THE LARAVEL MAGIC: Looping through the $errors suitcase -->
+        <ul class="mt-1 list-disc pl-4 text-sm text-red-900">
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+
+      </div>
+      
+      <button type="button" data-error-toast-close class="rounded-full p-1 text-red-700/80 transition hover:bg-red-500/10 hover:text-red-900" aria-label="Dismiss notification">
+        <i data-lucide="x" class="h-4 w-4"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const toast = document.getElementById('error-toast');
+    if (!toast) return;
+    const closeBtn = toast.querySelector('[data-error-toast-close]');
+    
+    const showToast = () => { 
+        requestAnimationFrame(() => { 
+            toast.classList.remove('opacity-0', '-translate-y-3'); 
+            toast.classList.add('opacity-100', 'translate-y-0'); 
+        }); 
+    };
+    
+    const hideToast = () => { 
+        toast.classList.add('opacity-0', '-translate-y-3'); 
+        toast.classList.remove('opacity-100', 'translate-y-0'); 
+        setTimeout(() => toast.remove(), 500); 
+    };
+    
+    showToast(); 
+    const timer = setTimeout(hideToast, 8000); // 8 seconds for errors so they can read them
+    
+    if (closeBtn) closeBtn.addEventListener('click', () => { 
+        clearTimeout(timer); 
+        hideToast(); 
+    });
+  });
+</script>
+@endif
         <main class="px-6 py-10">
           <div class="mx-auto w-full max-w-5xl">
             <section class="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
@@ -44,19 +102,16 @@
                           <option value="{{ $category->id }}" {{ old('category_id') == $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
                       @endforeach
                     </select>
-                    @error('category_id') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
                   </div>
 
                   <div>
                     <label class="text-sm font-medium">Subject</label>
                     <input class="mt-2 w-full rounded-2xl border border-slate-200/70 bg-white px-4 py-3 text-sm focus:border-[var(--color-primary)] outline-none" value="{{ old('subject') }}" name="subject" placeholder="Brief summary of the issue" required/>
-                    @error('subject') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
                   </div>
 
                   <div>
                     <label class="text-sm font-medium">Detailed Description</label>
                     <textarea class="mt-2 w-full rounded-2xl border border-slate-200/70 bg-white px-4 py-3 text-sm focus:border-[var(--color-primary)] outline-none" rows="4" name="description" placeholder="Explain the problem in detail..." required>{{ old('description') }}</textarea>
-                    @error('description') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
                   </div>
                 </div>
 
@@ -127,7 +182,6 @@
                             <option value="Gamezone">Gamezone</option>
                         </optgroup>
                       </select>
-                      @error('building') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
                     </div>
 
                     <!-- Floor Dropdown -->
@@ -141,7 +195,6 @@
                         <option value="3rd Floor">3rd Floor</option>
                         <option value="4th Floor">4th Floor</option>
                       </select>
-                      @error('floor') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
                     </div>
 
                     <!-- Exact Location Details -->
@@ -149,7 +202,6 @@
                       <label class="text-sm font-medium text-slate-700">Exact Location Details <span class="text-red-500">*</span></label>
                       <input type="text" name="specific_location" required class="mt-2 w-full rounded-2xl border border-slate-200/70 bg-white px-4 py-3 text-sm focus:border-[var(--color-primary)] outline-none placeholder:text-slate-400" placeholder="e.g. Dorm 104, right-side bathroom sink" value="{{ old('specific_location') }}" />
                       <p class="mt-1 text-xs text-slate-500">Please be as specific as possible so the technician can find the issue quickly.</p>
-                      @error('specific_location') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
                     </div>
                   </div>
                 </div>
@@ -163,8 +215,7 @@
                     </div>
                   </div>
                   <div class="mt-4">
-                      <input type="file" name="evidence" accept=".jpg,.jpeg,.png,.pdf" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[var(--color-primary)] file:text-white hover:file:bg-indigo-700" required/>
-                      @error('evidence') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                      <input type="file" required name="evidence" accept=".jpg,.jpeg,.png,.pdf" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[var(--color-primary)] file:text-white hover:file:bg-indigo-700" />
                   </div>
                 </div>
 

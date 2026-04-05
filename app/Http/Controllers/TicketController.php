@@ -2,8 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreTicketRequest;
 use App\Models\Ticket;
 use App\Models\Category;
+use App\Services\FileUploadService;
+use App\Services\TechnicianDispatcherService;
+use App\Services\TicketNotificationService;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
@@ -81,31 +85,20 @@ class TicketController extends Controller
         return view('tickets.success', compact('ticket'));
     }
 
-        public function store(Request $request)
+        public function store(StoreTicketRequest $request)
     {
-        // 1. STRICT VALIDATION FOR UNIVERSITY
-        $validated = $request->validate([
-            'category_id'       => 'required|exists:categories,id',
-            'subject'           => 'required|string|max:255',
-            'description'       => 'required|string',
-            'building'          => 'required|string',
-            'floor'             => 'required|string',
-            'specific_location' => 'required|string',
-            'evidence'          => 'nullable|image|mimes:jpeg,png,jpg,pdf|max:10240',
-        ]);
+        // 1. STRICT VALIDATION 
+        $validated = $request->validated();
    
-        $evidencePath = null;
-        if ($request->hasFile('evidence')) {
-            $evidencePath = $request->file('evidence')->store('evidence', 'public');
-        }
+       // 2. THE FILE UPLOADER WORKER 🗂️
+        $fileUploader = new FileUploadService();  //hire the worker to handle the file upload
+        $evidencePath = $fileUploader->UploadEvidence($request->file('evidence')); //tell the worker to upload the file and get the path
 
+        //3/]. THE TECHNICIAN DISPATCHER 🤖
         $category = Category::findOrFail($validated['category_id']);
 
-        // 2. THE UNIVERSITY ROBOT DISPATCHER 🤖
-        $assignedTechnician = User::where('role', 'technician')
-                     ->where('specialty', 'LIKE', '%' . $category->name . '%')
-                     ->where('assigned_buildings', 'LIKE', '%' . $validated['building'] . '%')
-                     ->first();                     
+        $dispatcher = new TechnicianDispatcherService(); // Hire the dispatcher to find the best technician for this job
+        $assignedTechnician = $dispatcher->findBestTechnician($category->name, $validated['building']); // Tell the dispatcher the category and building, and get back the best technician (or null if no one is available)
 
         $initialStatus = $assignedTechnician ? 'assigned' : 'open';
         $assignedTechnicianId = $assignedTechnician ? $assignedTechnician->id : null;
@@ -127,22 +120,11 @@ class TicketController extends Controller
         ]);
 
         // 4. NOTIFICATIONS
+
+        
         if ($assignedTechnician) {
-            // A. FIRE THE IN-APP BELL NOTIFICATION! 🔔
-            $assignedTechnician->notify(new \App\Notifications\TicketAssignedNotification($ticket));
-
-            // B. SEND TELEGRAM NOTIFICATION TO TECHNICIAN 📱
-            if ($assignedTechnician->telegram_chat_id) {
-                $message = "🚨 <b>NEW TICKET ASSIGNED</b> 🚨\n\n";
-                $message .= "<b>Category:</b> " . $category->name . "\n";
-                $message .= "<b>Building:</b> " . $validated['building'] . "\n";
-                $message .= "<b>Floor/Room:</b> " . $validated['floor'] . " (" . $validated['specific_location'] . ")\n\n";
-                $message .= "<b>Issue:</b> " . $validated['subject'] . "\n\n";
-                $message .= "<i>Please log in to your Mela Support dashboard to update the status.</i>";
-
-                $telegramService = app(\App\Services\TelegramService::class);
-                $telegramService->sendMessage($assignedTechnician->telegram_chat_id, $message);
-            }
+            $notifier = new TicketNotificationService();
+            $notifier->notifyTechnicianAssigned($assignedTechnician, $ticket, $category);
         }
 
         return redirect()->route('tickets.success', ['ticket' => $ticket->id])
