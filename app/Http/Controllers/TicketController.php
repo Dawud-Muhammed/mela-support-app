@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreTicketRequest;
+use App\Http\Requests\UpdateTicketStatusRequest;
 use App\Models\Ticket;
 use App\Models\Category;
 use App\Services\FileUploadService;
@@ -85,25 +86,20 @@ class TicketController extends Controller
         return view('tickets.success', compact('ticket'));
     }
 
-        public function store(StoreTicketRequest $request)
-    {
+        public function store(StoreTicketRequest $request,FileUploadService  $fileUploader,TechnicianDispatcherService $dispatcher,TicketNotificationService $notifier){
         // 1. STRICT VALIDATION 
         $validated = $request->validated();
    
        // 2. THE FILE UPLOADER WORKER 🗂️
-        $fileUploader = new FileUploadService();  //hire the worker to handle the file upload
         $evidencePath = $fileUploader->UploadEvidence($request->file('evidence')); //tell the worker to upload the file and get the path
 
-        //3/]. THE TECHNICIAN DISPATCHER 🤖
+        //3. THE TECHNICIAN DISPATCHER 🤖
         $category = Category::findOrFail($validated['category_id']);
-
-        $dispatcher = new TechnicianDispatcherService(); // Hire the dispatcher to find the best technician for this job
         $assignedTechnician = $dispatcher->findBestTechnician($category->name, $validated['building']); // Tell the dispatcher the category and building, and get back the best technician (or null if no one is available)
-
         $initialStatus = $assignedTechnician ? 'assigned' : 'open';
         $assignedTechnicianId = $assignedTechnician ? $assignedTechnician->id : null;
 
-        // 3. PERSISTENCE
+        // 4. PERSISTENCE
         $ticket = Ticket::create([
             'user_id'                  => auth()->id(),
             'category_id'              => $category->id,
@@ -119,11 +115,8 @@ class TicketController extends Controller
             'eta_timestamp'            => now()->addHours($category->sla_hours), 
         ]);
 
-        // 4. NOTIFICATIONS
-
-        
+        // 5. NOTIFICATIONS
         if ($assignedTechnician) {
-            $notifier = new TicketNotificationService();
             $notifier->notifyTechnicianAssigned($assignedTechnician, $ticket, $category);
         }
 
@@ -131,46 +124,22 @@ class TicketController extends Controller
                          ->with('success', 'Ticket created and routed successfully!');
     }
 
-
-    public function updateStatus(Request $request, Ticket $ticket)
+    public function updateStatus(UpdateTicketStatusRequest $request, Ticket $ticket, FileUploadService $fileUploader, TicketNotificationService $notifier)
     {
-        $validated = $request->validate([
-            'status' => 'required|in:open,assigned,in_progress,resolved,closed',
-            'resolution_evidence' => 'nullable|image|max:5120'
-        ]);
-
-        if ($request->hasFile('resolution_evidence')) {
-            $path = $request->file('resolution_evidence')->store('evidence/resolutions', 'public');
-            $ticket->resolution_evidence_path = $path;
+    //1    
+        $validated = $request->validated();
+    //2
+        $resolution_path = $fileUploader->UploadResolutionEvidence($request->file('resolution_evidence'));
+        if($resolution_path){
+            $ticket->resolution_evidence_path = $resolution_path;
         }
 
         $ticket->status = $validated['status'];
         $ticket->save();
 
           // 🚨 TRIGGER NOTIFICATIONS WHEN RESOLVED OR CLOSED 🚨
-        if ($ticket->status === 'resolved') {
-            // Send Email
-            \Illuminate\Support\Facades\Mail::to($ticket->user->email)
-                ->send(new \App\Mail\TicketResolvedMail($ticket));
 
-            // Notify User it's resolved
-            $ticket->user->notify(new \App\Notifications\TicketResolvedNotification($ticket));
-        } 
-        elseif ($ticket->status === 'closed') {
-            // THE NEW FUEL: Notify the User and Technician that the ticket is officially closed
-            // You can use a generic notification or create a TicketClosedNotification!
-            $message = "Ticket #{$ticket->id} has been officially closed.";
-            
-            // For now, let's just reuse the Resolved notification class but pass a different message,
-            // OR you can generate a quick `TicketClosedNotification` class!
-            $ticket->user->notify(new \App\Notifications\TicketResolvedNotification($ticket));
-            
-            if ($ticket->assigned_technician_id) {
-                $technician = \App\Models\User::find($ticket->assigned_technician_id);
-                $technician->notify(new \App\Notifications\TicketResolvedNotification($ticket));
-            }
-        }
-
+        $notifier->notifyStatusUpdate($ticket);
         return back()->with('success', 'Case status updated successfully!');
     }
         
@@ -252,3 +221,4 @@ class TicketController extends Controller
          }
      }
 }
+

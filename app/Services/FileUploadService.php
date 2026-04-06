@@ -16,4 +16,11 @@ class FileUploadService{
         //take the files and store them in the public disk under the evidence folder, and return the path like "evidence/filename.jpg"
         return $file->store('evidence', 'public');
     }
+
+    public function UploadResolutionEvidence(?UploadedFile $file): ?string{
+        if(!$file){
+            return null;
+        }
+        return $file->store('evidence/resolutions', 'public');
+    }
 }
