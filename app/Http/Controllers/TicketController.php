@@ -114,6 +114,7 @@ class TicketController extends Controller
             'priority'                 => 'medium', 
             'eta_timestamp'            => now()->addHours($category->sla_hours), 
         ]);
+        
 
         // 5. NOTIFICATIONS
         if ($assignedTechnician) {
