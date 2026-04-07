@@ -11,7 +11,7 @@ class DashboardController extends Controller
     public function index()
 {
     $user = auth()->user();
-    $query = Ticket::with('category');
+    $query = Ticket::with(['category', 'user', 'assignedTechnician']);
 
     // 🔒 SECURE FILTERING BY ROLE (This makes the numbers different for everyone!)
     if ($user->role === 'user') {
