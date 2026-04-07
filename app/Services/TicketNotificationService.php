@@ -56,4 +56,66 @@ class TicketNotificationService
             }
         }
     }
+
+    public function notifyTicketClosed(Ticket $ticket): void{
+
+             // 🎉 SEND CONGRATULATION TELEGRAM TO TECHNICIAN
+             if ($ticket->assignedTechnician && $ticket->assignedTechnician->telegram_chat_id) {
+                 $message = "🎉 <b>GREAT JOB! TICKET CLOSED</b> 🎉\n\n";
+                 $message .= "The user just verified your work and officially closed the ticket!\n\n";
+                 $message .= "<b>Ticket ID:</b> #" . $ticket->id . "\n";
+                 $message .= "<b>Location:</b> " . $ticket->building . " (" . $ticket->specific_location . ")\n\n";
+                 $message .= "<i>Thank you for your hard work and keeping the BiT campus running! 🌟</i>";
+
+                 $telegramService = app(\App\Services\TelegramService::class);
+                 $telegramService->sendMessage($ticket->assignedTechnician->telegram_chat_id, $message);
+             }
+
+                     // THE ENGINE: If the ticket is closed, notify the necessary people!
+        if ($ticket->status === 'closed') {
+            
+            // 1. If the person closing it is the USER, notify the TECHNICIAN!
+            if (auth()->id() === $ticket->user_id && $ticket->assigned_technician_id) {
+                $technician = \App\Models\User::find($ticket->assigned_technician_id);
+                if ($technician) {
+                    $technician->notify(new \App\Notifications\TicketClosedNotification($ticket));
+                }
+            }
+
+            // 2. If the person closing it is an ADMIN, notify BOTH the User and the Technician!
+            if (auth()->user()->role === 'admin') {
+                $ticket->user->notify(new \App\Notifications\TicketClosedNotification($ticket));
+                
+                if ($ticket->assigned_technician_id) {
+                    $technician = \App\Models\User::find($ticket->assigned_technician_id);
+                    if ($technician) {
+                        $technician->notify(new \App\Notifications\TicketClosedNotification($ticket));
+                    }
+                }
+            }
+        }
+            
+         
+    }
+
+    public function notifyTicketRejected(Ticket $ticket): void{
+         if ($ticket->assignedTechnician && $ticket->assignedTechnician->telegram_chat_id) {
+                 $message = "⚠️ <b>URGENT: WORK REJECTED</b> ⚠️\n\n";
+                 $message .= "The user reported that the issue is STILL BROKEN.\n";
+                 $message .= "The ticket has been reopened and escalated to <b>URGENT</b> priority.\n\n";
+                 $message .= "<b>Location:</b> " . $ticket->building . " (" . $ticket->specific_location . ")\n";
+                 $message .= "<i>Please return to the location immediately.</i>";
+
+                 $telegramService = app(\App\Services\TelegramService::class);
+                 $telegramService->sendMessage($ticket->assignedTechnician->telegram_chat_id, $message);
+             }
+
+                     // THE ENGINE: Notify the Technician that the user rejected the fix!
+        if ($ticket->assigned_technician_id) {
+            $technician = \App\Models\User::find($ticket->assigned_technician_id);
+            if ($technician) {
+                $technician->notify(new \App\Notifications\TicketRejectedNotification($ticket));
+            }
+        }
+    }
 }
