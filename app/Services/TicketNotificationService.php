@@ -115,8 +115,9 @@ class TicketNotificationService
         }
     }
 
-    public function notifyNewMessage(Ticket $ticket): void{
-            // A. If the sender is NOT the ticket creator, notify the creator!
+
+    public function notifyNewMessage(Ticket $ticket):void{
+                    // A. If the sender is NOT the ticket creator, notify the creator!
             if (auth()->id() !== $ticket->user_id && $ticket->user) {
                 $ticket->user->notify(new \App\Notifications\NewTicketMessageNotification($ticket));
             }
