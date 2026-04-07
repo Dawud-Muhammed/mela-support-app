@@ -38,7 +38,7 @@ class TicketController extends Controller
         return view('tickets.details', compact('ticket'));
     }
 
-       public function storeMessage(Request $request, Ticket $ticket)
+       public function storeMessage(Request $request, Ticket $ticket, TicketNotificationService $notifier)
     {
         // 🔒 Security: Only people involved in the ticket can chat!
         Gate::authorize('view', $ticket);
@@ -59,19 +59,7 @@ class TicketController extends Controller
         // 2. THE NOTIFICATION ENGINE 🚀
         // Only send alerts if this is a PUBLIC message
         if (!$isInternal) {
-            
-            // A. If the sender is NOT the ticket creator, notify the creator!
-            if (auth()->id() !== $ticket->user_id && $ticket->user) {
-                $ticket->user->notify(new \App\Notifications\NewTicketMessageNotification($ticket));
-            }
-
-            // B. If the sender is NOT the assigned technician, notify the technician!
-            if ($ticket->assigned_technician_id && auth()->id() !== $ticket->assigned_technician_id) {
-                $technician = \App\Models\User::find($ticket->assigned_technician_id);
-                if ($technician) {
-                    $technician->notify(new \App\Notifications\NewTicketMessageNotification($ticket));
-                }
-            }
+            $notifier->notifyNewMessage($ticket);
         }
 
         return redirect()->back(); // Instantly refresh to show the new message
